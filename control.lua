@@ -3,9 +3,7 @@ local flib_misc = require("__flib__.misc")
 
 local get_main_locomotive = flib_train.get_main_locomotive
 local get_distance_squared = flib_misc.get_distance_squared
-
-format = string.format -- Make_Train_RichText uses this as a global
-require("__LogisticTrainNetwork__.script.utils") -- Make_Train_RichText is defined as a global
+local format = string.format
 
 local function add_closest_elevator_to_schedule(entity, schedule_records)
 	local found_stop = nil
@@ -13,8 +11,10 @@ local function add_closest_elevator_to_schedule(entity, schedule_records)
 
 	-- TODO could be optimized with a lookup per surface but there aren't that many per surface
 	for _, elevator_stop in pairs(entity.surface.find_entities_filtered { name = "se-space-elevator-train-stop" }) do
-		if (not found_stop) or (get_distance_squared(elevator_stop.position, entity.position) < distance) then
+		local stop_distance = get_distance_squared(elevator_stop.position, entity.position)
+		if (not found_stop) or (stop_distance < distance) then
 			found_stop = elevator_stop
+			distance = stop_distance
 		end
 	end
 
@@ -27,16 +27,19 @@ local function add_closest_elevator_to_schedule(entity, schedule_records)
 	-- TODO report missing elevator
 end
 
+local function train_richtext(train)
+	local loco = get_main_locomotive(train)
+	if loco and loco.valid then
+		return format("[train=%d] %s", loco.unit_number, loco.backer_name)
+	else
+		return "[train=]"
+	end
+end
+
 local function register_event_handlers()
 	script.on_event(remote.call("space-exploration", "get_on_train_teleport_started_event"), function(event)
-		local loco = get_main_locomotive(event.train)
-
-		local trainText = Make_Train_RichText(event.train, loco and loco.backer_name or "unknown")
-		-- TODO should become a localized string
-		local msg = "[SE-LTN-glue] New "..trainText.." arrived through an elevator, notifying LTN about possible delivery re-assignment"
 		-- TODO this should honor LTN's setting for the reporting level. LTN printmsg() can't be used, though. Its message-throttling buffer isn't available outside of LTN.
-		game.print(msg)
-
+		game.print({"se-ltn-glue-message.re-assign-delivery", train_richtext(event.train)})
 		remote.call("logistic-train-network", "reassign_delivery", event.old_train_id_1, event.train)
 	end)
 
@@ -44,8 +47,8 @@ local function register_event_handlers()
 		local new_records = {}
 
 		local loco = get_main_locomotive(event.train)
-		if not loco then
-			return -- a train without a locomotive won't go anywhere
+		if not loco or not loco.valid then
+			return -- a train without a locomotive won't go anywhere, don't waste any effort on it
 		end
 
 		-- TODO these fields might not make it into on_delivery_created
