@@ -5,11 +5,21 @@ local get_main_locomotive = flib_train.get_main_locomotive
 local get_distance_squared = flib_misc.get_distance_squared
 local format = string.format
 
+message_level = tonumber(settings.global["ltn-interface-console-level"].value)
+
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
+  if not event then return end
+  if event.setting == "ltn-interface-console-level" then
+    message_level = tonumber(settings.global["ltn-interface-console-level"].value)
+  end
+end)
+
 local function add_closest_elevator_to_schedule(entity, schedule_records)
 	local found_stop = nil
 	local distance = 2147483647 -- maxint
 
 	-- TODO could be optimized with a lookup per surface but there aren't that many per surface
+	-- TODO make use of new surface_connections field in event
 	for _, elevator_stop in pairs(entity.surface.find_entities_filtered { name = "se-space-elevator-train-stop" }) do
 		local stop_distance = get_distance_squared(elevator_stop.position, entity.position)
 		if (not found_stop) or (stop_distance < distance) then
@@ -23,8 +33,6 @@ local function add_closest_elevator_to_schedule(entity, schedule_records)
 			station = found_stop.backer_name
 		})
 	end
-
-	-- TODO report missing elevator
 end
 
 local function train_richtext(train)
@@ -38,8 +46,9 @@ end
 
 local function register_event_handlers()
 	script.on_event(remote.call("space-exploration", "get_on_train_teleport_started_event"), function(event)
-		-- TODO this should honor LTN's setting for the reporting level. LTN printmsg() can't be used, though. Its message-throttling buffer isn't available outside of LTN.
-		game.print({"se-ltn-glue-message.re-assign-delivery", train_richtext(event.train)})
+		if message_level >= 3 then
+			game.print({"se-ltn-glue-message.re-assign-delivery", train_richtext(event.train)})
+		end
 		remote.call("logistic-train-network", "reassign_delivery", event.old_train_id_1, event.train)
 	end)
 
