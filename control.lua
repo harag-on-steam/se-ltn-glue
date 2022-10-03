@@ -7,11 +7,20 @@ local format = string.format
 
 message_level = tonumber(settings.global["ltn-interface-console-level"].value)
 
+local function check_delivery_reset_setting(report_to)
+  	if settings.global["ltn-dispatcher-requester-delivery-reset"].value then
+		report_to.print({ "se-ltn-glue-message.requester-delivery-reset-should-be-disabled", { "mod-setting-name.ltn-dispatcher-requester-delivery-reset"} })
+	end
+end
+
 script.on_event(defines.events.on_runtime_mod_setting_changed, function(event)
-  if not event then return end
-  if event.setting == "ltn-interface-console-level" then
-    message_level = tonumber(settings.global["ltn-interface-console-level"].value)
-  end
+	if not event then return end
+
+  	if event.setting == "ltn-interface-console-level" then
+    	message_level = tonumber(settings.global["ltn-interface-console-level"].value)
+  	elseif event.setting == "ltn-dispatcher-requester-delivery-reset" then
+		check_delivery_reset_setting(game)
+	end
 end)
 
 local function add_closest_elevator_to_schedule(entity, schedule_records)
@@ -101,3 +110,21 @@ end
 
 script.on_init(register_event_handlers)
 script.on_load(register_event_handlers)
+
+script.on_event(defines.events.on_player_created, function(event)
+	local player = game.get_player(event.player_index)
+	if player and player.connected then
+		check_delivery_reset_setting(player)
+	end
+end)
+
+script.on_event(defines.events.on_player_joined_game, function(event)
+	local player = game.get_player(event.player_index)
+	if player and player.connected then
+		check_delivery_reset_setting(player)
+	end
+end)
+
+script.on_configuration_changed(function()
+	check_delivery_reset_setting(game)
+end)
