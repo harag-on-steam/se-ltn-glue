@@ -1,5 +1,6 @@
 local flib_train = require("__flib__.train")
 local flib_misc = require("__flib__.misc")
+local area = require("__flib__.area")
 
 local get_main_locomotive = flib_train.get_main_locomotive
 local get_distance_squared = flib_misc.get_distance_squared
@@ -8,22 +9,59 @@ local format = string.format
 message_level = tonumber(settings.global["ltn-interface-console-level"].value)
 
 local function initialize()
+	global.elevators = global.elevators or {}
+end
+
+local function refresh_elevator(surface_connector)
+	local new_entry = {
+		surface_connector = surface_connector,
+	}
+
+	-- TODO probably needs adjustment depending on where this mod places its own entity
+	local search_area = area.expand(area.from_position(surface_connector.position), 12) -- elevator is 24x24
+
+	for _, entity in pairs(surface_connector.surface.find_entities_filtered {
+		name = {"se-space-elevator-train-stop", "se-space-elevator-energy-pole", "se-space-elevator"},
+		area = search_area,
+	}) do
+		if entity.name == "se-space-elevator-train-stop" then
+			new_entry.stop = entity
+		elseif entity.name == "se-space-elevator-energy-pole" then
+			new_entry.pole = entity
+		elseif entity.name == "se-space-elevator" then
+			new_entry.main = entity
+		end
+	end
+
+	global.elevators[surface_connector.unit_number] = new_entry
+	return new_entry
+end
+
+local function get_elevator_stop(surface_connector)
+	local elevator = global.elevators[surface_connector.unit_number]
+	if elevator and elevator.stop and elevator.stop.valid then
+		return elevator.stop
+	end
+	return refresh_elevator(surface_connector).stop
 end
 
 local function add_closest_elevator_to_schedule(entity, schedule_records, surface_connections)
 	local found_stop = nil
 	local distance = 2147483647 -- maxint
 
-	-- TODO could be optimized with a lookup per surface but there aren't that many per surface
-	-- TODO make use of new surface_connections field in event
-
-	for _, elevator_stop in pairs(entity.surface.find_entities_filtered { name = "se-space-elevator-train-stop" }) do
-		local stop_distance = get_distance_squared(elevator_stop.position, entity.position)
-		if (not found_stop) or (stop_distance < distance) then
-			found_stop = elevator_stop
-			distance = stop_distance
+	for _, connection in pairs(surface_connections) do
+		local connector = (connection.entity1.surface == entity.surface and connection.entity1) or connection.entity2
+		local elevator_stop = get_elevator_stop(connector)
+		if elevator_stop then
+			local stop_distance = get_distance_squared(elevator_stop.position, entity.position)
+			if (not found_stop) or (stop_distance < distance) then
+				found_stop = elevator_stop
+				distance = stop_distance
+			end
 		end
 	end
+
+	-- TODO report missing elevator stop
 
 	if found_stop then
 		table.insert(schedule_records, {
