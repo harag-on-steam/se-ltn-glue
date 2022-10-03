@@ -64,6 +64,8 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 	-- TODO report missing elevator stop
 
 	if found_stop then
+		-- no temp stops, entities to find the appropriate rail segments are only available in this event
+		-- just inform the player that elevators with different network_ids need different names
 		table.insert(schedule_records, {
 			station = found_stop.backer_name
 		})

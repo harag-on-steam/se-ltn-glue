@@ -1,0 +1,3 @@
+*.xcf export-ignore
+.vscode export-ignore
+.vscode/** export-ignore
