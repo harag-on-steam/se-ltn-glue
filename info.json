@@ -1,6 +1,6 @@
 {
     "name": "se-ltn-glue",
-    "version": "0.1.1",
+    "version": "0.1.2",
     "title": "SE-LTN Space Elevator Integration",
     "description": "",
     "author": "Harag",
@@ -9,8 +9,9 @@
     "dependencies": [
         "base",
         "flib",
-        "LogisticTrainNetwork",
-        "space-exploration >= 0.6.80"
+        "LogisticTrainNetwork >= 1.18.0",
+        "space-exploration >= 0.6.80",
+        "space-exploration-graphics"
     ],
     "package": {
         "ignore": [".git", ".github", ".vscode", ".kakrc", "*.xcf", "*.kra"]
