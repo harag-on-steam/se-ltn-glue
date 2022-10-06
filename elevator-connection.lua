@@ -4,7 +4,6 @@
 --- @field stop LuaEntity
 --- @field connector_id integer
 --- @field elevator_id integer
---- @field opposite_id integer
 
 --- @class ElevatorData
 --- @field ground ElevatorEndData
