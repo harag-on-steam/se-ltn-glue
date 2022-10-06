@@ -80,15 +80,6 @@ end
 --- Disconnects elevators from LTN by destroying the corresponding surface connectors
 --- @param data ElevatorData
 local function disconnect(data)
-    if data.ground.connector_id then
-        global.elevators[data.ground.connector_id] = nil
-        data.ground.connector_id = nil
-    end
-    if data.orbit.connector_id then
-        global.elevators[data.orbit.connector_id] = nil
-        data.orbit.connector_id = nil
-    end
-
     -- entity.destroy() also disconnects LTN
     if data.ground.connector and data.ground.connector.valid then
         game.print(string.format("destroying LTN connector for elevator [gps=%s,%s,%s]", data.ground.connector.position.x, data.ground.connector.position.y, data.ground.connector.surface.name))
@@ -98,6 +89,18 @@ local function disconnect(data)
         game.print(string.format("destroying LTN connector for elevator [gps=%s,%s,%s]", data.orbit.connector.position.x, data.orbit.connector.position.y, data.orbit.connector.surface.name))
         data.orbit.connector.destroy()
     end
+
+    if data.ground.connector_id then
+        global.elevators[data.ground.connector_id] = nil
+    end
+    if data.orbit.connector_id then
+        global.elevators[data.orbit.connector_id] = nil
+    end
+
+    data.ground.connector = nil
+    data.orbit.connector = nil
+    data.ground.connector_id = nil
+    data.orbit.connector_id = nil
 end
 
 --- Register with Factorio to destroy LTN surface connectors when the corresponding elevator is removed
