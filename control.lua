@@ -2,6 +2,7 @@ Train = require("__flib__.train")
 Misc = require("__flib__.misc")
 Area = require("__flib__.area")
 Event = require("__flib__.event")
+Gui = require("__flib__.gui")
 
 message_level = tonumber(settings.global["ltn-interface-console-level"].value)
 
@@ -20,8 +21,8 @@ end
 
 local function check_delivery_reset_setting(report_to)
 	if settings.global["ltn-dispatcher-requester-delivery-reset"].value then
-		report_to.print({ "se-ltn-glue-message.requester-delivery-reset-should-be-disabled", { "mod-setting-name.ltn-dispatcher-requester-delivery-reset"} })
-    end
+		report_to.print({ "se-ltn-glue-message.requester-delivery-reset-should-be-disabled", { "mod-setting-name.ltn-dispatcher-requester-delivery-reset" } })
+	end
 end
 
 Event.on_init(function()
@@ -40,7 +41,7 @@ end)
 
 Event.register(defines.events.on_entity_destroyed, Elevator.on_entity_destroyed)
 
-Event.register({defines.events.on_player_created, defines.events.on_player_joined_game}, function(e)
+Event.register({ defines.events.on_player_created, defines.events.on_player_joined_game }, function(e)
 	local player = game.get_player(e.player_index)
 	if player and player.connected then
 		check_delivery_reset_setting(player)

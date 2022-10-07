@@ -47,56 +47,56 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 end
 
 function Delivery.on_train_teleport_started(e)
-    if message_level >= 3 then
-        game.print({"se-ltn-glue-message.re-assign-delivery", train_richtext(e.train)})
-    end
-    remote.call("logistic-train-network", "reassign_delivery", e.old_train_id_1, e.train)
+	if message_level >= 3 then
+		game.print({ "se-ltn-glue-message.re-assign-delivery", train_richtext(e.train) })
+	end
+	remote.call("logistic-train-network", "reassign_delivery", e.old_train_id_1, e.train)
 end
 
 function Delivery.on_delivery_created(e)
-    local new_records = {}
+	local new_records = {}
 
-    local loco = Train.get_main_locomotive(e.train)
-    if not loco or not loco.valid then
-        return -- a train without a locomotive won't go anywhere, don't waste any effort on it
-    end
+	local loco = Train.get_main_locomotive(e.train)
+	if not loco or not loco.valid then
+		return -- a train without a locomotive won't go anywhere, don't waste any effort on it
+	end
 
-    -- TODO these fields might not make it into on_delivery_created
-    local from_stop = e.from_stop
-    local to_stop = e.to_stop
+	-- TODO these fields might not make it into on_delivery_created
+	local from_stop = e.from_stop
+	local to_stop = e.to_stop
 
-    if loco.surface == from_stop.surface and loco.surface == to_stop.surface then
-        return -- normal intra surface delivery, do nothing
-    end
+	if loco.surface == from_stop.surface and loco.surface == to_stop.surface then
+		return -- normal intra surface delivery, do nothing
+	end
 
-    local passage_count = 0
+	local passage_count = 0
 
-    for _, record in pairs(e.train.schedule.records) do
-        if record.station == e.from and loco.surface ~= from_stop.surface then
-            -- different surfaces implies no temp-stop before this record to consider
-            add_closest_elevator_to_schedule(loco, new_records, e.surface_connections)
-            passage_count = passage_count + 1
-        end
+	for _, record in pairs(e.train.schedule.records) do
+		if record.station == e.from and loco.surface ~= from_stop.surface then
+			-- different surfaces implies no temp-stop before this record to consider
+			add_closest_elevator_to_schedule(loco, new_records, e.surface_connections)
+			passage_count = passage_count + 1
+		end
 
-        if record.station == e.to and from_stop.surface ~= to_stop.surface then
-            -- different surfaces implies no temp-stop before this record to consider
-            add_closest_elevator_to_schedule(from_stop, new_records, e.surface_connections)
-            passage_count = passage_count + 1
-        end
+		if record.station == e.to and from_stop.surface ~= to_stop.surface then
+			-- different surfaces implies no temp-stop before this record to consider
+			add_closest_elevator_to_schedule(from_stop, new_records, e.surface_connections)
+			passage_count = passage_count + 1
+		end
 
-        table.insert(new_records, record)
+		table.insert(new_records, record)
 
-        if record.station == e.to and passage_count < 2 then
-            -- train is not yet on the surface it came from
-            add_closest_elevator_to_schedule(to_stop, new_records, e.surface_connections)
-            passage_count = passage_count + 1
-        end
-    end
+		if record.station == e.to and passage_count < 2 then
+			-- train is not yet on the surface it came from
+			add_closest_elevator_to_schedule(to_stop, new_records, e.surface_connections)
+			passage_count = passage_count + 1
+		end
+	end
 
-    e.train.schedule = {
-        current = e.train.schedule.current,
-        records = new_records,
-    }
+	e.train.schedule = {
+		current = e.train.schedule.current,
+		records = new_records,
+	}
 end
 
 return Delivery
