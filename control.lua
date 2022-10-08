@@ -64,6 +64,7 @@ Event.register(defines.events.on_runtime_mod_setting_changed, function(e)
 	elseif e.setting == "ltn-dispatcher-requester-delivery-reset" then
 		check_delivery_reset_setting(game)
 	end
+	Delivery.on_runtime_mod_setting_changed(e)
 end)
 
 local function safe_destroy(maybe_entity)

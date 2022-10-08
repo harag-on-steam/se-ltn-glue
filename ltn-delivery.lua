@@ -1,4 +1,15 @@
-local Delivery = {}
+local Delivery = {
+	use_clearance = settings.global["se-ltn-use-elevator-clearance"].value,
+	clearance_name = settings.global["se-ltn-elevator-clearance-name"].value,
+}
+
+function Delivery.on_runtime_mod_setting_changed(e)
+	if e.setting == "se-ltn-use-elevator-clearance" then
+		Delivery.use_clearance = settings.global["se-ltn-use-elevator-clearance"].value
+	elseif e.setting == "se-ltn-elevator-clearance-name" then
+		Delivery.clearance_name = settings.global["se-ltn-elevator-clearance-name"].value
+	end
+end
 
 --- @param train LuaEntity
 local function train_richtext(train)
@@ -43,6 +54,11 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 		table.insert(schedule_records, {
 			station = found_stop.backer_name
 		})
+		if Delivery.use_clearance then
+			table.insert(schedule_records, {
+				station = Delivery.clearance_name
+			})
+		end
 	end
 end
 
