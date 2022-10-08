@@ -7,6 +7,7 @@ Gui = require("__flib__.gui")
 message_level = tonumber(settings.global["ltn-interface-console-level"].value)
 
 Elevator = require("elevator-connection")
+ElevatorUI = require("elevator-ui")
 Delivery = require("ltn-delivery")
 
 local function initialize()
@@ -93,8 +94,6 @@ remote.add_interface("se-ltn-glue", {
 		global.players = {}
 	end,
 
-	-- TODO remove when the GUI works
-
 	connect_elevator = function(elevator_entity, network_id)
 		local data = Elevator.from_entity(elevator_entity)
 		if data then
@@ -113,4 +112,4 @@ remote.add_interface("se-ltn-glue", {
 	end,
 })
 
-if script.active_mods["gvv"] then require("__gvv__.gvv")() end
+-- if script.active_mods["gvv"] then require("__gvv__.gvv")() end

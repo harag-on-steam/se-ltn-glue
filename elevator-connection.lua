@@ -19,6 +19,19 @@ local Elevator = {
 
 local ENTITY_SEARCH = { Elevator.name_elevator, Elevator.name_stop, Elevator.name_connector }
 
+--- @param entity LuaEntity?
+local function gps_text(entity)
+	if entity and entity.valid then
+		return string.format("[gps=%s,%s,%s]", entity.position.x, entity.position.y, entity.surface.name )
+	end
+	return ""
+end
+
+--- @param network_id integer
+local function network_text(network_id)
+	return string.format("0x%08X", bit32.band(network_id)) -- band ensures 32bits (the parameter might have more)
+end
+
 --- Creates a new ElevatorEndData structure if all necessary entities are present on the given surfaces at the given location
 --- @param surface LuaSurface
 --- @param position { x: number, y: number } supposed to be at the center of an elevator, will be searched in a 12-tile radius
@@ -60,8 +73,7 @@ end
 --- @param ground_or_orbit ElevatorEndData the subtable in data that should be modified
 local function create_connector(data, ground_or_orbit)
 	local elevator = ground_or_orbit.elevator
-	game.print(string.format("creating connector [gps=%s,%s,%s]",
-		elevator.position.x, elevator.position.y, elevator.surface.name))
+	-- game.print(string.format("creating connector "..gps_text(elevator)))
 
 	local connector = elevator.surface.create_entity {
 		name = Elevator.name_connector,
@@ -83,13 +95,11 @@ end
 local function disconnect(data)
 	-- entity.destroy() also disconnects LTN
 	if data.ground.connector and data.ground.connector.valid then
-		game.print(string.format("destroying LTN connector for elevator [gps=%s,%s,%s]",
-			data.ground.connector.position.x, data.ground.connector.position.y, data.ground.connector.surface.name))
+		-- game.print(string.format("destroying LTN connector for elevator "..gps_text(data.ground.connector)))
 		data.ground.connector.destroy()
 	end
 	if data.orbit.connector and data.orbit.connector.valid then
-		game.print(string.format("destroying LTN connector for elevator [gps=%s,%s,%s]",
-			data.orbit.connector.position.x, data.orbit.connector.position.y, data.orbit.connector.surface.name))
+		-- game.print(string.format("destroying LTN connector for elevator "..gps_text(data.orbit.connector)))
 		data.orbit.connector.destroy()
 	end
 
@@ -204,9 +214,18 @@ function Elevator.update_connection(data)
 		if not (data.orbit.connector and data.orbit.connector.valid) then
 			create_connector(data, data.orbit)
 		end
+
 		remote.call("logistic-train-network", "connect_surfaces", data.ground.connector, data.orbit.connector, data.network_id)
+
+		if data.network_id == -1 then
+			data.ground.elevator.force.print({ "se-ltn-glue-message.elevator-connected", gps_text(data.ground.elevator) })
+		else
+			data.ground.elevator.force.print({ "se-ltn-glue-message.elevator-connected-masked", gps_text(data.ground.elevator), network_text(data.network_id) })
+		end
 	else
 		disconnect(data)
+
+		data.ground.elevator.force.print({ "se-ltn-glue-message.elevator-disconnected", gps_text(data.ground.elevator) })
 	end
 end
 
