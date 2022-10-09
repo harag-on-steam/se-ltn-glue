@@ -13,10 +13,14 @@ end
 --- @param elevator LuaEntity
 function ElevatorUI.open(player, elevator)
 	local player_data = lazy_subtable(global.players, player.index)
-	if not player_data.elevator_ui then
-		player_data.elevator_ui = ElevatorUI.build(player, elevator, Elevator.from_entity(elevator))
+
+	-- Re-create the UI every time it is opened.
+	-- This is the only time the UI is updated from the model.
+	-- The implication is that concurrent changes in multiplayer won't be reflected in the UI.
+	if player_data.elevator_ui then
+		player_data.elevator_ui.frame.destroy()
 	end
-	-- player_data.elevator_ui.visible = true
+	player_data.elevator_ui = ElevatorUI.build(player, elevator, Elevator.from_entity(elevator))
 end
 
 --- @param player LuaPlayer
@@ -29,7 +33,7 @@ function ElevatorUI.build(player, elevator, elevator_data)
 			tags = { unit_number = elevator.unit_number },
 			anchor = { gui=defines.relative_gui_type.assembling_machine_gui, position=defines.relative_gui_position.top },
 			direction = "horizontal",
-			style_mods = { padding = { 5, 5, 0, 5 }, margin = 0 },
+			style_mods = { padding = { 5, 5, 0, 5 } }, -- top right bottom left
 			{
 				type = "flow",
 				children = {
@@ -60,6 +64,7 @@ function ElevatorUI.build(player, elevator, elevator_data)
 						tooltip = { "se-ltn-ui-tooltip.network-id" },
 						numeric = true, allow_negative = true,
 						-- string.format("%08X", bit32.band(elevator.network_id)),
+						-- ... but built-in support for numbers only supports base-decimal
 						text = tostring(elevator_data.network_id),
 						actions = { on_confirmed = "set_network_id" },
 					},
@@ -70,6 +75,7 @@ function ElevatorUI.build(player, elevator, elevator_data)
 						tooltip = {"space-exploration.informatron-open-help"},
 						tags = { informatron_page = "space_elevators" },
 						actions = { on_click = "open_informatron" },
+						visible = false, -- NYI
 					},
 				}
 			},
@@ -136,9 +142,9 @@ local function is_elevator_opened(e)
 	return false
 end
 
---[[]]
 Gui.hook_events(function(e)
-	-- the UI of this mod is attached to the elevator so we need to open when its assembler opens
+	-- The UI of this mod is attached to the elevator so we need to open when its assembler opens.
+	-- Every mod can have only have one handler per event and flib hooked all the UI events, so we need to do this here.
 	if e.name == defines.events.on_gui_opened and is_elevator_opened(e) then
 		return
 	elseif e.name == defines.events.on_gui_closed and is_elevator_closed(e) then
@@ -150,10 +156,5 @@ Gui.hook_events(function(e)
 		end
 	end
 end)
---[[]]
-
--- replaces flib's hook for opened and closed
--- Event.register(defines.events.on_gui_closed, on_gui_closed)
--- Event.register(defines.events.on_gui_opened, on_gui_opened)
 
 return ElevatorUI

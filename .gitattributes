@@ -1,3 +1,7 @@
 *.xcf export-ignore
 .vscode export-ignore
 .vscode/** export-ignore
+.gitattributes export-ignore
+.gitignore export-ignore
+.editorconfig export-ignore
+package.sh export-ignore

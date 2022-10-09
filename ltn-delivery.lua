@@ -50,7 +50,7 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 	if found_stop then
 		-- no temp stops, entities to find the appropriate rail segments are only available in this event
 		-- but not when the train arrives on the corresponding surface
-		-- just inform the player in the FAQ that elevators with different network_ids need different names
+		-- just inform the player that elevators with different network_ids need different names. TODO FAQ? InformaTron?
 		table.insert(schedule_records, {
 			station = found_stop.backer_name
 		})
@@ -63,10 +63,13 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 end
 
 function Delivery.on_train_teleport_started(e)
-	if message_level >= 3 then
-		game.print({ "se-ltn-glue-message.re-assign-delivery", train_richtext(e.train) })
+	local train_has_delivery = remote.call("logistic-train-network", "reassign_delivery", e.old_train_id_1, e.train)
+	if message_level >= 3 and train_has_delivery then
+		local first_carriage = e.train.carriages[1]
+		-- If the locomotive is not the first carriage in driving direction
+		-- the message will be missing the backer_name of the locomotive because the invisible elevator tug doesn't have one.
+		first_carriage.force.print({ "se-ltn-glue-message.re-assign-delivery", train_richtext(e.train) })
 	end
-	remote.call("logistic-train-network", "reassign_delivery", e.old_train_id_1, e.train)
 end
 
 function Delivery.on_delivery_created(e)
@@ -89,6 +92,7 @@ function Delivery.on_delivery_created(e)
 
 	for _, record in pairs(e.train.schedule.records) do
 		if record.station == e.from and loco.surface ~= from_stop.surface then
+			-- (currently cannot happen, the train is always sourced from the provider surface)
 			-- different surfaces implies no temp-stop before this record to consider
 			add_closest_elevator_to_schedule(loco, new_records, e.surface_connections)
 			passage_count = passage_count + 1
