@@ -19,7 +19,6 @@ end
 
 local function register_event_handlers()
 	Event.register(remote.call("space-exploration", "get_on_train_teleport_started_event"), Delivery.on_train_teleport_started)
-	Event.register(remote.call("logistic-train-network", "on_delivery_created"), Delivery.on_delivery_created)
 	Event.register(remote.call("logistic-train-network", "on_stops_updated"), Delivery.on_stops_updated)
 	Event.register(remote.call("logistic-train-network", "on_dispatcher_updated"), Delivery.on_dispatcher_updated)
 end

@@ -108,10 +108,6 @@ end
 
 -- the following events happen in the order their handler methods are declared
 
-function Delivery.on_delivery_created(e)
-	global.pending_new_deliveries[e.train_id] = true
-end
-
 function Delivery.on_stops_updated(e)
 	global.ltn_stops = e.logistic_train_stops or {}
 end
@@ -120,7 +116,7 @@ function Delivery.on_dispatcher_updated(e)
 	local deliveries = e.deliveries
 	local ltn_stops = global.ltn_stops
 
-	for train_id, _ in pairs(global.pending_new_deliveries) do
+	for _, train_id in pairs(e.new_deliveries) do
 		local delivery = deliveries[train_id]
 		if delivery and delivery.surface_connections and next(delivery.surface_connections) then
 			local from_stop = ltn_stops[delivery.from_id]
