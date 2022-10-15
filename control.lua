@@ -14,7 +14,6 @@ local function initialize()
 	global.elevators = global.elevators or {}
 	global.players = global.players or {}
 	global.ltn_stops = global.ltn_stops or {}
-	global.pending_new_deliveries = global.pending_new_deliveries or {}
 end
 
 local function register_event_handlers()

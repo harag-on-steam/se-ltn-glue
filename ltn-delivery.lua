@@ -30,27 +30,29 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 
 	for _, connection in pairs(surface_connections) do
 		-- which entity we use is not important, both map to the same ElevatorData structure
-		local elevator = Elevator.from_unit_number(connection.entity1.unit_number)
-		if elevator then -- the connection might not belong to se-ltn-glue
-			local stop = elevator.ground.stop
-			if not (stop and stop.valid and stop.surface == entity.surface) then
-				stop = elevator.orbit.stop
-			end
+		-- but the entity might have become invalid between the LTN dispatcher's tick and this one
+		if connection.entity1 and connection.entity1.valid then
+			local elevator = Elevator.from_unit_number(connection.entity1.unit_number)
+			if elevator then -- the connection might not belong to se-ltn-glue
+				local stop = elevator.ground.stop
+				if not (stop and stop.valid and stop.surface == entity.surface) then
+					stop = elevator.orbit.stop
+				end
 
-			if stop and stop.valid and stop.surface == entity.surface then
-				local stop_distance = Misc.get_distance_squared(stop.position, entity.position)
-				if (not found_stop) or (stop_distance < distance) then
-					found_stop = stop
-					distance = stop_distance
+				if stop and stop.valid and stop.surface == entity.surface then
+					-- get_distance_squared avoids calculating a sqrt. That's unnecessary when comparing distances.
+					local stop_distance = Misc.get_distance_squared(stop.position, entity.position)
+					if (not found_stop) or (stop_distance < distance) then
+						found_stop = stop
+						distance = stop_distance
+					end
 				end
 			end
 		end
 	end
 
 	if found_stop then
-		-- no temp stops, entities to find the appropriate rail segments are only available in this event
-		-- but not when the train arrives on the corresponding surface
-		-- just inform the player that elevators with different network_ids need different names. TODO FAQ? InformaTron?
+		-- TODO no temp stops yet. would require keeping the delivery data for use in on_train_teleport_started
 		table.insert(schedule_records, {
 			station = found_stop.backer_name
 		})
@@ -128,8 +130,6 @@ function Delivery.on_dispatcher_updated(e)
 				setup_cross_surface_schedule(delivery.train, from_stop.entity, to_stop.entity, delivery.surface_connections)
 			end
 		end
-
-		global.pending_new_deliveries[train_id] = nil
 	end
 end
 

@@ -144,7 +144,7 @@ end
 
 Gui.hook_events(function(e)
 	-- The UI of this mod is attached to the elevator so we need to open when its assembler opens.
-	-- Every mod can have only have one handler per event and flib hooked all the UI events, so we need to do this here.
+	-- Every mod can have only one handler per event and flib hooked all the UI events, so we need to do this here.
 	if e.name == defines.events.on_gui_opened and is_elevator_opened(e) then
 		return
 	elseif e.name == defines.events.on_gui_closed and is_elevator_closed(e) then
