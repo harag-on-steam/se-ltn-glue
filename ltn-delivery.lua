@@ -1,3 +1,13 @@
+---@class LtnSurfaceConnection
+---@field entity1 LuaEntity
+---@field entity2 LuaEntity
+---@field network_id integer
+
+---@class LtnDelivery
+---@field train LuaTrain
+---@field shipment table<string,integer>
+---@field surface_connections LtnSurfaceConnection[]
+
 local Delivery = {
 	use_clearance = settings.global["se-ltn-use-elevator-clearance"].value,
 	clearance_name = settings.global["se-ltn-elevator-clearance-name"].value,
@@ -11,7 +21,7 @@ function Delivery.on_runtime_mod_setting_changed(e)
 	end
 end
 
---- @param train LuaEntity
+--- @param train LuaTrain
 local function train_richtext(train)
 	local loco = Train.get_main_locomotive(train)
 	if loco and loco.valid then
@@ -23,7 +33,7 @@ end
 
 --- @param entity LuaEntity a carriage or a train-stop
 --- @param schedule_records table array of TrainScheduleRecord (Factorio concept)
---- @param surface_connections { entity1 : LuaEntity, entity2 : LuaEntity, network_id : integer }[]
+--- @param surface_connections LtnSurfaceConnection[]
 local function add_closest_elevator_to_schedule(entity, schedule_records, surface_connections)
 	local found_stop = nil
 	local distance = 2147483647 -- maxint
@@ -64,30 +74,52 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 	end
 end
 
---- @param train LuaTrain
+--- @param delivery LtnDelivery
 --- @param from_stop LuaEntity
 --- @param to_stop LuaEntity
---- @param surface_connections { entity1 : LuaEntity, entity2 : LuaEntity, network_id : integer }[]
-local function setup_cross_surface_schedule(train, from_stop, to_stop, surface_connections)
+local function setup_cross_surface_schedule(delivery, from_stop, to_stop)
+	local train = delivery.train
 	local loco = Train.get_main_locomotive(train)
 	if not loco or (loco.surface == from_stop.surface and loco.surface == to_stop.surface) then
 		return -- train without a locomotive or intra-surface delivery
 	end
+	local surface_connections = delivery.surface_connections
 
 	log("preparing cross surface delivery for [train="..loco.unit_number.."]")
+
+	-- Comparing stop names is not enough to find the provider and the requester record,
+	-- they might share names with each other or another stop in the schedule.
+	-- So use a heuristic that also looks at the wait conditions
+	local item = next(delivery.shipment)
+	local itype, iname = string.match(item, "([^,]+),([^,]+)")
+
+	local function get_wait_count_comparator(record)
+	if record.wait_conditions then
+		for _, wait_condition in pairs(record.wait_conditions) do
+		local condition = wait_condition.condition
+		if condition and condition.constant and (wait_condition.type == "item_count" or wait_condition.type == "fluid_count") then
+			local signal = condition.first_signal
+			return signal and signal.type == itype and signal.name == iname and condition.comparator
+		end
+		end
+	end
+	end
 
 	local new_records = {}
 	local passage_count = 0
 
 	for _, record in pairs(train.schedule.records) do
-		if record.station == from_stop.backer_name and loco.surface ~= from_stop.surface then
+		local is_provider = record.station == from_stop.backer_name and get_wait_count_comparator(record) == "≥"
+		local is_requester = not is_provider and record.station == to_stop.backer_name and get_wait_count_comparator(record) == "="
+
+		if is_provider and loco.surface ~= from_stop.surface then
 			-- (currently cannot happen, the train is always sourced from the provider surface)
 			-- different surfaces implies no temp-stop before this record to consider
 			add_closest_elevator_to_schedule(loco, new_records, surface_connections)
 			passage_count = passage_count + 1
 		end
 
-		if record.station == to_stop.backer_name and from_stop.surface ~= to_stop.surface then
+		if is_requester and from_stop.surface ~= to_stop.surface then
 			-- different surfaces implies no temp-stop before this record to consider
 			add_closest_elevator_to_schedule(from_stop, new_records, surface_connections)
 			passage_count = passage_count + 1
@@ -95,7 +127,7 @@ local function setup_cross_surface_schedule(train, from_stop, to_stop, surface_c
 
 		table.insert(new_records, record)
 
-		if record.station == to_stop.backer_name and passage_count < 2 then
+		if is_requester and passage_count < 2 then
 			-- train is not yet on the surface it came from
 			add_closest_elevator_to_schedule(to_stop, new_records, surface_connections)
 			passage_count = passage_count + 1
@@ -127,7 +159,7 @@ function Delivery.on_dispatcher_updated(e)
 			if from_stop and from_stop.entity and from_stop.entity.valid
 			and to_stop and from_stop.entity and to_stop.entity.valid
 			and delivery.train and delivery.train.valid then
-				setup_cross_surface_schedule(delivery.train, from_stop.entity, to_stop.entity, delivery.surface_connections)
+				setup_cross_surface_schedule(delivery, from_stop.entity, to_stop.entity)
 			end
 		end
 	end

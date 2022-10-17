@@ -1,7 +1,7 @@
 {
     "name": "se-ltn-glue",
-    "version": "0.1.4",
-    "title": "Space Exploration - LTN integration",
+    "version": "0.1.5",
+    "title": "Space Exploration LTN integration",
     "description": "Allows LTN to make deliveries through SE's space elevator",
     "author": "Harag",
     "factorio_version": "1.1",
