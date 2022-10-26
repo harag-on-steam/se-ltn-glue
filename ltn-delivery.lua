@@ -167,11 +167,15 @@ end
 
 function Delivery.on_train_teleport_started(e)
 	local train_has_delivery = remote.call("logistic-train-network", "reassign_delivery", e.old_train_id_1, e.train)
-	if message_level >= 3 and train_has_delivery then
-		local first_carriage = e.train.carriages[1]
-		-- If the locomotive is not the first carriage in driving direction
-		-- the message will be missing the backer_name of the locomotive because the invisible elevator tug doesn't have one.
-		first_carriage.force.print({ "se-ltn-glue-message.re-assign-delivery", train_richtext(e.train) })
+	if train_has_delivery then
+		remote.call("logistic-train-network", "update_schedule", e.train)
+
+		if message_level >= 3 then
+			local first_carriage = e.train.carriages[1]
+			-- If the locomotive is not the first carriage in driving direction
+			-- the message will be missing the backer_name of the locomotive because the invisible elevator tug doesn't have one.
+			first_carriage.force.print({ "se-ltn-glue-message.re-assign-delivery", train_richtext(e.train) })
+		end
 	end
 end
 
