@@ -168,7 +168,7 @@ end
 function Delivery.on_train_teleport_started(e)
 	local train_has_delivery = remote.call("logistic-train-network", "reassign_delivery", e.old_train_id_1, e.train)
 	if train_has_delivery then
-		remote.call("logistic-train-network", "update_schedule", e.train)
+		remote.call("logistic-train-network", "get_or_create_next_temp_stop", e.train)
 
 		if message_level >= 3 then
 			local first_carriage = e.train.carriages[1]
