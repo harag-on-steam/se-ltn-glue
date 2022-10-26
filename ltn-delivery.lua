@@ -87,39 +87,29 @@ local function setup_cross_surface_schedule(delivery, from_stop, to_stop)
 
 	log("preparing cross surface delivery for [train="..loco.unit_number.."]")
 
-	-- Comparing stop names is not enough to find the provider and the requester record,
-	-- they might share names with each other or another stop in the schedule.
-	-- So use a heuristic that also looks at the wait conditions
-	local item = next(delivery.shipment)
-	local itype, iname = string.match(item, "([^,]+),([^,]+)")
-
-	local function get_wait_count_comparator(record)
-	if record.wait_conditions then
-		for _, wait_condition in pairs(record.wait_conditions) do
-		local condition = wait_condition.condition
-		if condition and condition.constant and (wait_condition.type == "item_count" or wait_condition.type == "fluid_count") then
-			local signal = condition.first_signal
-			return signal and signal.type == itype and signal.name == iname and condition.comparator
-		end
-		end
-	end
-	end
-
 	local new_records = {}
 	local passage_count = 0
 
-	for _, record in pairs(train.schedule.records) do
-		local is_provider = record.station == from_stop.backer_name and get_wait_count_comparator(record) == "≥"
-		local is_requester = not is_provider and record.station == to_stop.backer_name and get_wait_count_comparator(record) == "="
+	local from_index, to_index
 
-		if is_provider and loco.surface ~= from_stop.surface then
+	local stop_index, _, stop_type = remote.call("logistic-train-network", "get_next_logistic_stop", train)
+	if stop_type == "provider" then
+		from_index = stop_index
+		stop_index, _, stop_type = remote.call("logistic-train-network", "get_next_logistic_stop", train, stop_index + 1)
+	end
+	if stop_type == "requester" then
+		to_index = stop_index
+	end
+
+	for old_index, record in pairs(train.schedule.records) do
+		if old_index == from_index and loco.surface ~= from_stop.surface then
 			-- (currently cannot happen, the train is always sourced from the provider surface)
 			-- different surfaces implies no temp-stop before this record to consider
 			add_closest_elevator_to_schedule(loco, new_records, surface_connections)
 			passage_count = passage_count + 1
 		end
 
-		if is_requester and from_stop.surface ~= to_stop.surface then
+		if old_index == to_index and from_stop.surface ~= to_stop.surface then
 			-- different surfaces implies no temp-stop before this record to consider
 			add_closest_elevator_to_schedule(from_stop, new_records, surface_connections)
 			passage_count = passage_count + 1
@@ -127,7 +117,7 @@ local function setup_cross_surface_schedule(delivery, from_stop, to_stop)
 
 		table.insert(new_records, record)
 
-		if is_requester and passage_count < 2 then
+		if old_index == to_index and passage_count == 1 then
 			-- train is not yet on the surface it came from
 			add_closest_elevator_to_schedule(to_stop, new_records, surface_connections)
 			passage_count = passage_count + 1
