@@ -35,7 +35,7 @@ end
 --- Creates a new ElevatorEndData structure if all necessary entities are present on the given surfaces at the given location
 --- @param surface LuaSurface
 --- @param position { x: number, y: number } supposed to be at the center of an elevator, will be searched in a 12-tile radius
---- @return ElevatorEndData|nil
+--- @return ElevatorEndData?
 local function search_entities(surface, position)
 	local search_area = Area.expand(Area.from_position(position), 12) -- elevator is 24x24
 	local elevator, stop, connector
@@ -130,11 +130,12 @@ function Elevator.on_entity_destroyed(e)
 end
 
 --- Either the surface.index and zone.type of the opposite surface or nil
---- @return integer|nil,string|nil
+--- @return integer? surface_index
+--- @return string? zone_type
 local function find_opposite_surface(surface_index)
 	local zone = remote.call("space-exploration", "get_zone_from_surface_index", { surface_index = surface_index })
 	if zone then
-		local opposite_zone_index = (zone.type == "planet" and zone.orbit_index) or (zone.type == "orbit" and zone.parent_index) or nil
+		local opposite_zone_index = ((zone.type == "planet" or zone.type == "moon") and zone.orbit_index) or (zone.type == "orbit" and zone.parent_index) or nil
 		if opposite_zone_index then
 			local opposite_zone = remote.call("space-exploration", "get_zone_from_zone_index", { zone_index = opposite_zone_index })
 			if opposite_zone and opposite_zone.surface_index then -- a zone might not have a surface, yet
@@ -154,8 +155,8 @@ function Elevator.from_unit_number(unit_number)
 end
 
 --- Looks up the elevator data for the given entity. Creates the data structure if it doesn't exist, yet.
---- @param entity? LuaEntity must be a `se-space-elevator` or `se-ltn-elevator-connector`
---- @return ElevatorData|nil
+--- @param entity LuaEntity? must be a `se-space-elevator` or `se-ltn-elevator-connector`
+--- @return ElevatorData?
 function Elevator.from_entity(entity)
 	if not (entity and entity.valid) then
 		return nil
@@ -178,13 +179,13 @@ function Elevator.from_entity(entity)
 	if not end2 then return nil end
 
 	data = {
-		ground = opposite_zone_type == "planet" and end2 or end1,
+		ground = (opposite_zone_type == "planet" or opposite_zone_type == "moon") and end2 or end1,
 		orbit = opposite_zone_type == "orbit" and end2 or end1,
 		ltn_enabled = end1.connector_id and end2.connector_id and true,
 		network_id = -1, -- no entity in the world has this information so reset to -1
 	}
 	if data.ground == data.orbit then
-		error("only know how to handle elevators in zone.type 'planet' and 'orbit'")
+		error("only know how to handle elevators in zone.type 'planet', 'moon' and 'orbit'")
 	end
 
 	global.elevators[data.ground.elevator_id] = data
