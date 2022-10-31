@@ -5,6 +5,7 @@ Event = require("__flib__.event")
 Gui = require("__flib__.gui")
 
 message_level = tonumber(settings.global["ltn-interface-console-level"].value)
+debug_log = settings.global["ltn-interface-debug-logfile"].value
 
 Elevator = require("elevator-connection")
 ElevatorUI = require("elevator-ui")
@@ -64,6 +65,8 @@ Event.register(defines.events.on_runtime_mod_setting_changed, function(e)
 
 	if e.setting == "ltn-interface-console-level" then
 		message_level = tonumber(settings.global["ltn-interface-console-level"].value)
+	elseif e.setting == "ltn-interface-debug-logfile" then
+		debug_log = settings.global["ltn-interface-debug-logfile"].value
 	elseif e.setting == "ltn-dispatcher-requester-delivery-reset" then
 		check_delivery_reset_setting(game)
 	end

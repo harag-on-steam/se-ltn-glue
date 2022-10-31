@@ -73,7 +73,7 @@ end
 --- @param ground_or_orbit ElevatorEndData the subtable in data that should be modified
 local function create_connector(data, ground_or_orbit)
 	local elevator = ground_or_orbit.elevator
-	-- game.print(string.format("creating connector "..gps_text(elevator)))
+	if debug_log then log(string.format("creating LTN connector for elevator "..gps_text(ground_or_orbit.elevator))) end
 
 	local connector = elevator.surface.create_entity {
 		name = Elevator.name_connector,
@@ -95,11 +95,11 @@ end
 local function disconnect(data)
 	-- entity.destroy() also disconnects LTN
 	if data.ground.connector and data.ground.connector.valid then
-		-- game.print(string.format("destroying LTN connector for elevator "..gps_text(data.ground.connector)))
+		if debug_log then log(string.format("destroying LTN ground connector for elevator "..gps_text(data.orbit.connector))) end
 		data.ground.connector.destroy()
 	end
 	if data.orbit.connector and data.orbit.connector.valid then
-		-- game.print(string.format("destroying LTN connector for elevator "..gps_text(data.orbit.connector)))
+		if debug_log then log(string.format("destroying LTN orbit connector for elevator "..gps_text(data.orbit.connector))) end
 		data.orbit.connector.destroy()
 	end
 

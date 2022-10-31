@@ -56,13 +56,17 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 						found_stop = stop
 						distance = stop_distance
 					end
+				elseif debug_log then
+					log(string.format("both elevator stops of connection [%s, %d] are either invalid or not on the same surface as the target",	connection.entity1.name, connection.entity1.unit_number))
 				end
-			end
-		end
+			elseif debug_log then log(string.format("no elevator data for connection [%s, %d]", connection.entity1.name, connection.entity1.unit_number)) end
+		elseif debug_log then log("stale connection entity") end
 	end
 
 	if found_stop then
-		-- TODO no temp stops yet. would require keeping the delivery data for use in on_train_teleport_started
+		-- No temp stops. This would require keeping the delivery data for use in on_train_teleport_started to know which elevators the delivery can use.
+		-- This is further complicated when elevator surface connections are removed from LTN during the delivery,
+		-- because the connection data is immediately removed in that case, making finding the corresponding elevator stops impossible.
 		table.insert(schedule_records, {
 			station = found_stop.backer_name
 		})
@@ -71,7 +75,7 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 				station = Delivery.clearance_name
 			})
 		end
-	end
+	elseif debug_log then log("failed to find a suitable elevator stop to add to the schedule") end
 end
 
 --- @param delivery LtnDelivery
@@ -84,8 +88,9 @@ local function setup_cross_surface_schedule(delivery, from_stop, to_stop)
 		return -- train without a locomotive or intra-surface delivery
 	end
 	local surface_connections = delivery.surface_connections
-
-	log("preparing cross surface delivery for [train="..loco.unit_number.."]")
+	if message_level >= 3 then
+		loco.force.print({"se-ltn-glue-message.cross-surface-delivery", train_richtext(train), #surface_connections})
+	end
 
 	local new_records = {}
 	local passage_count = 0
@@ -100,6 +105,8 @@ local function setup_cross_surface_schedule(delivery, from_stop, to_stop)
 	if stop_type == "requester" then
 		to_index = stop_index
 	end
+
+	if debug_log then log(string.format("preparing cross surface delivery for [train=%d], provider at #%s, requester at #%s", loco.unit_number, from_index, to_index)) end
 
 	for old_index, record in pairs(train.schedule.records) do
 		if old_index == from_index and loco.surface ~= from_stop.surface then
