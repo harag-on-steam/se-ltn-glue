@@ -34,7 +34,7 @@ end
 
 --- Creates a new ElevatorEndData structure if all necessary entities are present on the given surfaces at the given location
 --- @param surface LuaSurface
---- @param position { x: number, y: number } supposed to be at the center of an elevator, will be searched in a 12-tile radius
+--- @param position MapPosition supposed to be at the center of an elevator, will be searched in a 12-tile radius
 --- @return ElevatorEndData?
 local function search_entities(surface, position)
 	local search_area = Area.expand(Area.from_position(position), 12) -- elevator is 24x24
@@ -75,12 +75,12 @@ local function create_connector(data, ground_or_orbit)
 	local elevator = ground_or_orbit.elevator
 	if debug_log then log(string.format("creating LTN connector for elevator "..gps_text(ground_or_orbit.elevator))) end
 
-	local connector = elevator.surface.create_entity {
+	local connector = elevator.surface.create_entity({
 		name = Elevator.name_connector,
 		position = elevator.position,
 		force = elevator.force,
 		create_build_effect_smoke = false,
-	}
+	}) --[[@as LuaEntity]]
 	connector.destructible = false
 	connector.operable = false
 

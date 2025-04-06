@@ -154,7 +154,7 @@ function Delivery.on_dispatcher_updated(e)
 			local to_stop = ltn_stops[delivery.to_id]
 
 			if from_stop and from_stop.entity and from_stop.entity.valid
-			and to_stop and from_stop.entity and to_stop.entity.valid
+			and to_stop and to_stop.entity and to_stop.entity.valid
 			and delivery.train and delivery.train.valid then
 				setup_cross_surface_schedule(delivery, from_stop.entity, to_stop.entity)
 			end
