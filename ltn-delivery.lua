@@ -13,14 +13,14 @@ local Train = require("__flib__.train")
 
 local Delivery = {
 	use_clearance = settings.global["se-ltn-use-elevator-clearance"].value,
-	clearance_name = settings.global["se-ltn-elevator-clearance-name"].value,
+	clearance_name = settings.global["se-ltn-elevator-clearance-name"].value --[[@as string]],
 }
 
 function Delivery.on_runtime_mod_setting_changed(e)
 	if e.setting == "se-ltn-use-elevator-clearance" then
 		Delivery.use_clearance = settings.global["se-ltn-use-elevator-clearance"].value
 	elseif e.setting == "se-ltn-elevator-clearance-name" then
-		Delivery.clearance_name = settings.global["se-ltn-elevator-clearance-name"].value
+		Delivery.clearance_name = settings.global["se-ltn-elevator-clearance-name"].value --[[@as string]]
 	end
 end
 
@@ -35,9 +35,10 @@ local function train_richtext(train)
 end
 
 --- @param entity LuaEntity a carriage or a train-stop
---- @param schedule_records table array of TrainScheduleRecord (Factorio concept)
+--- @param schedule LuaSchedule
+--- @param insert_index int
 --- @param surface_connections LtnSurfaceConnection[]
-local function add_closest_elevator_to_schedule(entity, schedule_records, surface_connections)
+local function add_closest_elevator_to_schedule(entity, schedule, insert_index, surface_connections)
 	local found_stop = nil
 	local distance = 2147483647 -- maxint
 
@@ -70,13 +71,18 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 		-- No temp stops. This would require keeping the delivery data for use in on_train_teleport_started to know which elevators the delivery can use.
 		-- This is further complicated when elevator surface connections are removed from LTN during the delivery,
 		-- because the connection data is immediately removed in that case, making finding the corresponding elevator stops impossible.
-		table.insert(schedule_records, {
-			station = found_stop.backer_name
-		})
 		if Delivery.use_clearance then
-			table.insert(schedule_records, {
-				station = Delivery.clearance_name
+			schedule.add_record({
+				station = Delivery.clearance_name,
+				index = { schedule_index = insert_index },
 			})
+		end
+		schedule.add_record({
+			station = found_stop.backer_name,
+			index = { schedule_index = insert_index },
+		})
+		if schedule.current > insert_index then
+			schedule.go_to_station(insert_index)
 		end
 	elseif debug_log then log("failed to find a suitable elevator stop to add to the schedule") end
 end
@@ -95,9 +101,6 @@ local function setup_cross_surface_schedule(delivery, from_stop, to_stop)
 		loco.force.print({"se-ltn-glue-message.cross-surface-delivery", train_richtext(train), #surface_connections})
 	end
 
-	local new_records = {}
-	local passage_count = 0
-
 	local from_index, to_index
 
 	local stop_index, _, stop_type = remote.call("logistic-train-network", "get_next_logistic_stop", train)
@@ -111,33 +114,17 @@ local function setup_cross_surface_schedule(delivery, from_stop, to_stop)
 
 	if debug_log then log(string.format("preparing cross surface delivery for [train=%d], provider at #%s, requester at #%s", loco.unit_number, from_index, to_index)) end
 
-	for old_index, record in pairs(train.schedule.records) do
-		if old_index == from_index and loco.surface ~= from_stop.surface then
-			-- (currently cannot happen, the train is always sourced from the provider surface)
-			-- different surfaces implies no temp-stop before this record to consider
-			add_closest_elevator_to_schedule(loco, new_records, surface_connections)
-			passage_count = passage_count + 1
-		end
-
-		if old_index == to_index and from_stop.surface ~= to_stop.surface then
-			-- different surfaces implies no temp-stop before this record to consider
-			add_closest_elevator_to_schedule(from_stop, new_records, surface_connections)
-			passage_count = passage_count + 1
-		end
-
-		table.insert(new_records, record)
-
-		if old_index == to_index and passage_count == 1 then
-			-- train is not yet on the surface it came from
-			add_closest_elevator_to_schedule(to_stop, new_records, surface_connections)
-			passage_count = passage_count + 1
-		end
+	local schedule = train.get_schedule()
+	-- doing this in reverse schedule order avoids shifting indices
+	if to_index and to_stop.surface ~= loco.surface then
+		add_closest_elevator_to_schedule(to_stop, schedule, to_index + 1, surface_connections)
 	end
-
-	train.schedule = {
-		current = train.schedule.current,
-		records = new_records,
-	}
+	if to_index and from_stop.surface ~= to_stop.surface then
+		add_closest_elevator_to_schedule(from_stop, schedule, to_index, surface_connections)
+	end
+	if from_index and loco.surface ~= from_stop.surface then
+		add_closest_elevator_to_schedule(from_stop, schedule, from_index, surface_connections)
+	end
 end
 
 -- the following events happen in the order their handler methods are declared
