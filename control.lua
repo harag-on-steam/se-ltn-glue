@@ -111,4 +111,4 @@ remote.add_interface("se-ltn-glue", {
 	end,
 })
 
--- if script.active_mods["gvv"] then require("__gvv__.gvv")() end
+if script.active_mods["gvv"] then require("__gvv__.gvv")() end
