@@ -29,65 +29,61 @@ end
 --- @param elevator LuaEntity
 --- @param elevator_data ElevatorData
 function ElevatorUI.build(player, elevator, elevator_data)
-	local refs = Gui.build(player.gui.relative, {
+	local refs = Gui.add(player.gui.relative, {{
+		type = "frame", name = "frame",
+		tags = { unit_number = elevator.unit_number },
+		anchor = { gui = defines.relative_gui_type.assembling_machine_gui, position = defines.relative_gui_position.top },
+		direction = "horizontal",
+		style_mods = { padding = { 5, 5, 0, 5 } }, -- top right bottom left
 		{
-			type = "frame",	ref = { "frame" },
-			tags = { unit_number = elevator.unit_number },
-			anchor = { gui=defines.relative_gui_type.assembling_machine_gui, position=defines.relative_gui_position.top },
-			direction = "horizontal",
-			style_mods = { padding = { 5, 5, 0, 5 } }, -- top right bottom left
+			type = "flow",
 			{
-				type = "flow",
-				children = {
-					{
-						type = "label", style = "frame_title", ignored_by_interaction = true,
-						style_mods = { top_margin = 1 },
-						caption = "LTN",
-					},
-					{
-						type = "switch", ref = { "connect" },
-						style_mods = { top_margin = 1 },
-						tags = { unit_number = elevator.unit_number },
-						allow_none_state = false,
-						switch_state = elevator_data.ltn_enabled and "right" or "left",
-						right_label_caption = "Connected",
-						actions = { on_switch_state_changed = "toggle_ltn_connection" },
-					},
-					{
-						type = "label",
-						style_mods = { margin = { 2, 0, 0, 5 } },
-						caption = "[img=virtual-signal/ltn-network-id]",
-						tooltip = { "se-ltn-ui-tooltip.network-id" },
-					},
-					{
-						type = "textfield", ref = { "network_id" },
-						style_mods = { top_margin = -3, width = 100 },
-						tags = { unit_number = elevator.unit_number },
-						tooltip = { "se-ltn-ui-tooltip.network-id" },
-						numeric = true, allow_negative = true,
-						-- string.format("%08X", bit32.band(elevator.network_id)),
-						-- ... but built-in support for numbers only supports base-decimal
-						text = tostring(elevator_data.network_id),
-						actions = { on_confirmed = "set_network_id" },
-					},
-					{
-						type = "sprite-button", style = "frame_action_button",
-						style_mods = { left_margin = 5 },
-						sprite = "virtual-signal/informatron",
-						tooltip = {"space-exploration.informatron-open-help"},
-						tags = { informatron_page = "space_elevators" },
-						actions = { on_click = "open_informatron" },
-						visible = false, -- NYI
-					},
-				}
+				type = "label", style = "frame_title", ignored_by_interaction = true,
+				style_mods = { top_margin = -3 },
+				caption = "LTN",
+			},
+			{
+				type = "switch", name = "connect",
+				style_mods = { top_margin = 2 },
+				tags = { unit_number = elevator.unit_number },
+				allow_none_state = false,
+				switch_state = elevator_data.ltn_enabled and "right" or "left",
+				right_label_caption = "Connected",
+				handler = { [defines.events.on_gui_switch_state_changed] = ElevatorUI.toggle_ltn_connection }
+			},
+			{
+				type = "label",
+				style_mods = { margin = { 2, 0, 0, 5 } },
+				caption = "[img=virtual-signal/ltn-network-id]",
+				tooltip = { "se-ltn-ui-tooltip.network-id" },
+			},
+			{
+				type = "textfield", name = "network_id",
+				style_mods = { top_margin = -3, width = 100 },
+				tags = { unit_number = elevator.unit_number },
+				tooltip = { "se-ltn-ui-tooltip.network-id" },
+				numeric = true, allow_negative = true,
+				-- string.format("%08X", bit32.band(elevator.network_id)),
+				-- ... but built-in support for numbers only supports base-decimal
+				text = tostring(elevator_data.network_id),
+				handler = { [defines.events.on_gui_confirmed] = ElevatorUI.set_network_id },
+			},
+			{
+				type = "sprite-button", style = "frame_action_button",
+				style_mods = { left_margin = 5 },
+				sprite = "virtual-signal/informatron",
+				tooltip = {"space-exploration.informatron-open-help"},
+				tags = { informatron_page = "space_elevators" },
+				handler = { [defines.events.on_gui_click] = ElevatorUI.open_informatron },
+				visible = false, -- NYI
 			},
 		}
-	})
+	}})
 	return refs
 end
 
 function ElevatorUI.toggle_ltn_connection(e)
-	local data = Elevator.from_unit_number(Gui.get_tags(e.element).unit_number)
+	local data = Elevator.from_unit_number(e.element.tags.unit_number)
 	if data then
 		local new_connected = e.element.switch_state == "right"
 		if data.ltn_enabled ~= new_connected then
@@ -98,7 +94,7 @@ function ElevatorUI.toggle_ltn_connection(e)
 end
 
 function ElevatorUI.set_network_id(e)
-	local data = Elevator.from_unit_number(Gui.get_tags(e.element).unit_number)
+	local data = Elevator.from_unit_number(e.element.tags.unit_number)
 	if data then
 		local new_network_id = tonumber(e.element.text)
 		if new_network_id and new_network_id ~= data.network_id then
@@ -144,19 +140,26 @@ local function is_elevator_opened(e)
 	return false
 end
 
-Gui.hook_events(function(e)
-	-- The UI of this mod is attached to the elevator so we need to open when its assembler opens.
-	-- Every mod can have only one handler per event and flib hooked all the UI events, so we need to do this here.
-	if e.name == defines.events.on_gui_opened and is_elevator_opened(e) then
-		return
-	elseif e.name == defines.events.on_gui_closed and is_elevator_closed(e) then
-		return
-	else
-		local action = Gui.read_action(e)
-		if action then
-			ElevatorUI[action](e)
-		end
-	end
+Gui.add_handlers({
+	toggle_ltn_connection = ElevatorUI.toggle_ltn_connection,
+	set_network_id = ElevatorUI.set_network_id,
+	open_informatron = ElevatorUI.open_informatron,
+})
+
+-- The UI of this mod is attached to the elevator so we need to open when its assembler opens.
+
+script.on_event(defines.events.on_gui_opened, function(e)
+	if is_elevator_opened(e) then return end
+	Gui.dispatch(e)
 end)
+
+script.on_event(defines.events.on_gui_closed, function(e)
+	if is_elevator_closed(e) then return end
+	Gui.dispatch(e)
+end)
+
+-- flib hooks all remaining on_gui_ events with this.
+-- A mod can only hook each event once, so this needs to happen last.
+Gui.handle_events()
 
 return ElevatorUI
