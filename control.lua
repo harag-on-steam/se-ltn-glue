@@ -1,9 +1,3 @@
-Train = require("__flib__.train")
-Misc = require("__flib__.misc")
-Area = require("__flib__.area")
-Event = require("__flib__.event")
-Gui = require("__flib__.gui")
-
 message_level = tonumber(settings.global["ltn-interface-console-level"].value)
 debug_log = settings.global["ltn-interface-debug-logfile"].value
 
@@ -12,15 +6,15 @@ ElevatorUI = require("elevator-ui")
 Delivery = require("ltn-delivery")
 
 local function initialize()
-	global.elevators = global.elevators or {}
-	global.players = global.players or {}
-	global.ltn_stops = global.ltn_stops or {}
+	storage.elevators = storage.elevators or {}
+	storage.players = storage.players or {}
+	storage.ltn_stops = storage.ltn_stops or {}
 end
 
 local function register_event_handlers()
-	Event.register(remote.call("space-exploration", "get_on_train_teleport_started_event"), Delivery.on_train_teleport_started)
-	Event.register(remote.call("logistic-train-network", "on_stops_updated"), Delivery.on_stops_updated)
-	Event.register(remote.call("logistic-train-network", "on_dispatcher_updated"), Delivery.on_dispatcher_updated)
+	script.on_event(remote.call("space-exploration", "get_on_train_teleport_started_event"), Delivery.on_train_teleport_started)
+	script.on_event(remote.call("logistic-train-network", "on_stops_updated"), Delivery.on_stops_updated)
+	script.on_event(remote.call("logistic-train-network", "on_dispatcher_updated"), Delivery.on_dispatcher_updated)
 end
 
 local function check_delivery_reset_setting(report_to)
@@ -29,38 +23,38 @@ local function check_delivery_reset_setting(report_to)
 	end
 end
 
-Event.on_init(function()
+script.on_init(function()
 	initialize()
 	register_event_handlers()
 end)
 
-Event.on_load(function()
+script.on_load(function()
 	register_event_handlers()
 end)
 
-Event.on_configuration_changed(function()
+script.on_configuration_changed(function()
 	initialize()
 	check_delivery_reset_setting(game)
 end)
 
-Event.register(defines.events.on_entity_destroyed, Elevator.on_entity_destroyed)
+script.on_event(defines.events.on_object_destroyed, Elevator.on_entity_destroyed)
 
-Event.register({ defines.events.on_player_created, defines.events.on_player_joined_game }, function(e)
-	local player = game.get_player(e.player_index)
+script.on_event({ defines.events.on_player_created, defines.events.on_player_joined_game }, function(e)
+	local player = game.get_player(e.player_index --[[@as uint]])
 	if player and player.connected then
 		check_delivery_reset_setting(player)
 	end
 end)
 
-Event.register(defines.events.on_player_removed, function(e)
-	local player_data = global.players[e.player_index]
+script.on_event(defines.events.on_player_removed, function(e)
+	local player_data = storage.players[e.player_index]
 	if player_data and player_data.elevator_gui then
 		player_data.elevator_gui.destroy()
 	end
-	global.players[e.player_index] = nil
+	storage.players[e.player_index] = nil
 end)
 
-Event.register(defines.events.on_runtime_mod_setting_changed, function(e)
+script.on_event(defines.events.on_runtime_mod_setting_changed, function(e)
 	if not e then return end
 
 	if e.setting == "ltn-interface-console-level" then
@@ -81,7 +75,7 @@ end
 
 remote.add_interface("se-ltn-glue", {
 	reset = function()
-		for _, data in pairs(global.elevators) do
+		for _, data in pairs(storage.elevators) do
 			safe_destroy(data.connector)
 			if data.ground then
 				safe_destroy(data.ground.connector)
@@ -90,13 +84,13 @@ remote.add_interface("se-ltn-glue", {
 				safe_destroy(data.orbit.connector)
 			end
 		end
-		for _, data in pairs(global.players) do
+		for _, data in pairs(storage.players) do
 			if data.elevator_gui then
 				data.elevator_gui.destroy()
 			end
 		end
-		global.elevators = {}
-		global.players = {}
+		storage.elevators = {}
+		storage.players = {}
 	end,
 
 	connect_elevator = function(elevator_entity, network_id)

@@ -8,6 +8,9 @@
 ---@field shipment table<string,integer>
 ---@field surface_connections LtnSurfaceConnection[]
 
+local Position = require("__flib__.position")
+local Train = require("__flib__.train")
+
 local Delivery = {
 	use_clearance = settings.global["se-ltn-use-elevator-clearance"].value,
 	clearance_name = settings.global["se-ltn-elevator-clearance-name"].value,
@@ -51,7 +54,7 @@ local function add_closest_elevator_to_schedule(entity, schedule_records, surfac
 
 				if stop and stop.valid and stop.surface == entity.surface then
 					-- get_distance_squared avoids calculating a sqrt. That's unnecessary when comparing distances.
-					local stop_distance = Misc.get_distance_squared(stop.position, entity.position)
+					local stop_distance = Position.distance_squared(stop.position, entity.position)
 					if (not found_stop) or (stop_distance < distance) then
 						found_stop = stop
 						distance = stop_distance
@@ -140,12 +143,12 @@ end
 -- the following events happen in the order their handler methods are declared
 
 function Delivery.on_stops_updated(e)
-	global.ltn_stops = e.logistic_train_stops or {}
+	storage.ltn_stops = e.logistic_train_stops or {}
 end
 
 function Delivery.on_dispatcher_updated(e)
 	local deliveries = e.deliveries
-	local ltn_stops = global.ltn_stops
+	local ltn_stops = storage.ltn_stops
 
 	for _, train_id in pairs(e.new_deliveries) do
 		local delivery = deliveries[train_id]

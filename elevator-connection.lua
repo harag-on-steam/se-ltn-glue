@@ -11,6 +11,8 @@
 --- @field ltn_enabled boolean
 --- @field network_id integer
 
+local Box = require("__flib__.bounding-box")
+
 local Elevator = {
 	name_elevator = "se-space-elevator",
 	name_stop = "se-space-elevator-train-stop",
@@ -37,7 +39,7 @@ end
 --- @param position MapPosition supposed to be at the center of an elevator, will be searched in a 12-tile radius
 --- @return ElevatorEndData?
 local function search_entities(surface, position)
-	local search_area = Area.expand(Area.from_position(position), 12) -- elevator is 24x24
+	local search_area = Box.from_dimensions(position, 24, 24) -- elevator is 24x24
 	local elevator, stop, connector
 
 	for _, found_entity in pairs(surface.find_entities_filtered {
@@ -75,19 +77,19 @@ local function create_connector(data, ground_or_orbit)
 	local elevator = ground_or_orbit.elevator
 	if debug_log then log(string.format("creating LTN connector for elevator "..gps_text(ground_or_orbit.elevator))) end
 
-	local connector = elevator.surface.create_entity({
+	local connector = assert(elevator.surface.create_entity({
 		name = Elevator.name_connector,
 		position = elevator.position,
 		force = elevator.force,
 		create_build_effect_smoke = false,
-	}) --[[@as LuaEntity]]
+	}))
 	connector.destructible = false
 	connector.operable = false
 
 	ground_or_orbit.connector = connector
 	ground_or_orbit.connector_id = connector.unit_number
 
-	global.elevators[ground_or_orbit.connector_id] = data
+	storage.elevators[ground_or_orbit.connector_id] = data
 end
 
 --- Disconnects elevators from LTN by destroying the corresponding surface connectors
@@ -104,10 +106,10 @@ local function disconnect(data)
 	end
 
 	if data.ground.connector_id then
-		global.elevators[data.ground.connector_id] = nil
+		storage.elevators[data.ground.connector_id] = nil
 	end
 	if data.orbit.connector_id then
-		global.elevators[data.orbit.connector_id] = nil
+		storage.elevators[data.orbit.connector_id] = nil
 	end
 
 	data.ground.connector = nil
@@ -116,16 +118,18 @@ local function disconnect(data)
 	data.orbit.connector_id = nil
 end
 
+local entity_type = defines.target_type.entity
+
 --- Register with Factorio to destroy LTN surface connectors when the corresponding elevator is removed
 function Elevator.on_entity_destroyed(e)
-	if not e.unit_number then return end
+	if e.type ~= entity_type or not e.useful_id then return end
 
-	local data = global.elevators[e.unit_number]
+	local data = storage.elevators[e.useful_id]
 	if data then
 		disconnect(data)
 
-		global.elevators[data.ground.elevator_id] = nil
-		global.elevators[data.orbit.elevator_id] = nil
+		storage.elevators[data.ground.elevator_id] = nil
+		storage.elevators[data.orbit.elevator_id] = nil
 	end
 end
 
@@ -150,7 +154,7 @@ end
 --- @param unit_number integer the unit_number of a `se-space-elevator` or `se-ltn-elevator-connector`
 --- @return ElevatorData|nil
 function Elevator.from_unit_number(unit_number)
-	local elevator = global.elevators[unit_number]
+	local elevator = storage.elevators[unit_number]
 	return elevator or nil
 end
 
@@ -188,18 +192,18 @@ function Elevator.from_entity(entity)
 		error("only know how to handle elevators in zone.type 'planet', 'moon' and 'orbit'")
 	end
 
-	global.elevators[data.ground.elevator_id] = data
-	global.elevators[data.orbit.elevator_id] = data
+	storage.elevators[data.ground.elevator_id] = data
+	storage.elevators[data.orbit.elevator_id] = data
 
 	-- no need to track by registration number, both entities are valid and must have a unit_number
-	Event.register_on_entity_destroyed(data.ground.elevator)
-	Event.register_on_entity_destroyed(data.orbit.elevator)
+	script.register_on_object_destroyed(data.ground.elevator)
+	script.register_on_object_destroyed(data.orbit.elevator)
 
 	if data.ground.connector_id then
-		global.elevators[data.ground.connector_id] = data
+		storage.elevators[data.ground.connector_id] = data
 	end
 	if data.orbit.connector_id then
-		global.elevators[data.orbit.connector_id] = data
+		storage.elevators[data.orbit.connector_id] = data
 	end
 
 	return data

@@ -1,3 +1,5 @@
+local Gui = require("__flib__.gui")
+
 local ElevatorUI = {}
 
 local function lazy_subtable(a_table, key)
@@ -12,7 +14,7 @@ end
 --- @param player LuaPlayer
 --- @param elevator LuaEntity
 function ElevatorUI.open(player, elevator)
-	local player_data = lazy_subtable(global.players, player.index)
+	local player_data = lazy_subtable(storage.players, player.index)
 
 	-- Re-create the UI every time it is opened.
 	-- This is the only time the UI is updated from the model.
@@ -20,7 +22,7 @@ function ElevatorUI.open(player, elevator)
 	if player_data.elevator_ui then
 		player_data.elevator_ui.frame.destroy()
 	end
-	player_data.elevator_ui = ElevatorUI.build(player, elevator, Elevator.from_entity(elevator))
+	player_data.elevator_ui = ElevatorUI.build(player, elevator, assert(Elevator.from_entity(elevator)))
 end
 
 --- @param player LuaPlayer
@@ -115,7 +117,7 @@ end
 
 --- @param player LuaPlayer
 function ElevatorUI.close(player)
-	local player_data = lazy_subtable(global.players, player.index)
+	local player_data = lazy_subtable(storage.players, player.index)
 	if not player_data.elevator_ui then
 		return
 	end
@@ -125,7 +127,7 @@ function ElevatorUI.close(player)
 end
 
 local function is_elevator_closed(e)
-	local player = game.get_player(e.player_index)
+	local player = assert(game.get_player(e.player_index))
 	if e.entity and e.entity.valid and e.entity.name == Elevator.name_elevator then
 		ElevatorUI.close(player)
 		return true
@@ -134,7 +136,7 @@ local function is_elevator_closed(e)
 end
 
 local function is_elevator_opened(e)
-	local player = game.get_player(e.player_index)
+	local player = assert(game.get_player(e.player_index))
 	if e.entity and e.entity.valid and e.entity.name == Elevator.name_elevator then
 		ElevatorUI.open(player, e.entity)
 		return true
