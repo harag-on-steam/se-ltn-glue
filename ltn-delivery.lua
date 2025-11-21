@@ -38,7 +38,10 @@ end
 --- @param schedule LuaSchedule
 --- @param insert_index int
 --- @param surface_connections LtnSurfaceConnection[]
-local function add_closest_elevator_to_schedule(entity, schedule, insert_index, surface_connections)
+--- @param stop_is_destination boolean
+local function add_closest_elevator_to_schedule(entity, schedule, insert_index, surface_connections, stop_is_destination)
+	stop_is_destination = stop_is_destination or false
+
 	local found_stop = nil
 	local distance = 2147483647 -- maxint
 
@@ -48,13 +51,29 @@ local function add_closest_elevator_to_schedule(entity, schedule, insert_index, 
 		if connection.entity1 and connection.entity1.valid then
 			local elevator = Elevator.from_unit_number(connection.entity1.unit_number)
 			if elevator then -- the connection might not belong to se-ltn-glue
-				local stop = elevator.ground.stop
-				if not (stop and stop.valid and stop.surface == entity.surface) then
+
+				-- check if the ground end matches the entity.
+				stop = elevator.ground.stop
+				if stop and stop.valid and stop.surface == entity.surface then
+					-- if the ground end matches and the stop is *after* the elevator, then the
+					-- stop is actually the opposite end
+					stop = stop_is_destination and elevator.orbit.stop or elevator.ground.stop
+				else
+					-- check if the orbit end matches.
 					stop = elevator.orbit.stop
+					if stop and stop.valid and stop.surface == entity.surface then
+					-- same thing: if the orbit end matches and the stop is *after* the elevator, then the
+					-- stop is actually the opposite end
+						stop = stop_is_destination and elevator.ground.stop or elevator.orbit.stop
+					else
+						stop = nil
+					end
 				end
 
-				if stop and stop.valid and stop.surface == entity.surface then
+				if stop then
 					-- get_distance_squared avoids calculating a sqrt. That's unnecessary when comparing distances.
+					-- as the ground end and orbit end sit at the same position on different surfaces, it does not
+					-- matter that for stop_is_destination it actually looks at the wrong end.
 					local stop_distance = Position.distance_squared(stop.position, entity.position)
 					if (not found_stop) or (stop_distance < distance) then
 						found_stop = stop
@@ -117,13 +136,13 @@ local function setup_cross_surface_schedule(delivery, from_stop, to_stop)
 	local schedule = train.get_schedule()
 	-- doing this in reverse schedule order avoids shifting indices
 	if to_index and to_stop.surface ~= loco.surface then
-		add_closest_elevator_to_schedule(to_stop, schedule, to_index + 1, surface_connections)
+		add_closest_elevator_to_schedule(to_stop, schedule, to_index + 1, surface_connections, false)
 	end
 	if to_index and from_stop.surface ~= to_stop.surface then
-		add_closest_elevator_to_schedule(from_stop, schedule, to_index, surface_connections)
+		add_closest_elevator_to_schedule(from_stop, schedule, to_index, surface_connections, false)
 	end
 	if from_index and loco.surface ~= from_stop.surface then
-		add_closest_elevator_to_schedule(from_stop, schedule, from_index, surface_connections)
+		add_closest_elevator_to_schedule(from_stop, schedule, from_index, surface_connections, true)
 	end
 end
 
