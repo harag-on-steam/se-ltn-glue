@@ -1,6 +1,6 @@
 {
     "name": "se-ltn-glue",
-    "version": "0.7.1",
+    "version": "0.7.2",
     "title": "Space Exploration LTN integration",
     "description": "Allows LTN to make deliveries through SE's space elevator",
     "author": "Harag",
@@ -8,7 +8,7 @@
     "dependencies": [
         "base >= 2.0.39",
         "flib >= 0.16.0",
-        "LogisticTrainNetwork >= 2.3.3",
+        "LogisticTrainNetwork >= 2.5.0",
         "space-exploration >= 0.7.0"
     ],
     "package": {

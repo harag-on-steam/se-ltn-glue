@@ -17,12 +17,6 @@ local function register_event_handlers()
 	script.on_event(remote.call("logistic-train-network", "on_dispatcher_updated"), Delivery.on_dispatcher_updated)
 end
 
-local function check_delivery_reset_setting(report_to)
-	if settings.global["ltn-dispatcher-requester-delivery-reset"].value then
-		report_to.print({ "se-ltn-glue-message.requester-delivery-reset-should-be-disabled", { "mod-setting-name.ltn-dispatcher-requester-delivery-reset" } })
-	end
-end
-
 script.on_init(function()
 	initialize()
 	register_event_handlers()
@@ -34,17 +28,9 @@ end)
 
 script.on_configuration_changed(function()
 	initialize()
-	check_delivery_reset_setting(game)
 end)
 
 script.on_event(defines.events.on_object_destroyed, Elevator.on_entity_destroyed)
-
-script.on_event({ defines.events.on_player_created, defines.events.on_player_joined_game }, function(e)
-	local player = game.get_player(e.player_index --[[@as uint]])
-	if player and player.connected then
-		check_delivery_reset_setting(player)
-	end
-end)
 
 script.on_event(defines.events.on_player_removed, function(e)
 	local player_data = storage.players[e.player_index]
@@ -61,8 +47,6 @@ script.on_event(defines.events.on_runtime_mod_setting_changed, function(e)
 		message_level = tonumber(settings.global["ltn-interface-console-level"].value)
 	elseif e.setting == "ltn-interface-debug-logfile" then
 		debug_log = settings.global["ltn-interface-debug-logfile"].value
-	elseif e.setting == "ltn-dispatcher-requester-delivery-reset" then
-		check_delivery_reset_setting(game)
 	end
 	Delivery.on_runtime_mod_setting_changed(e)
 end)

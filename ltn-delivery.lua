@@ -74,11 +74,13 @@ local function add_closest_elevator_to_schedule(entity, schedule, insert_index, 
 		if Delivery.use_clearance then
 			schedule.add_record({
 				station = Delivery.clearance_name,
+				temporary = true,
 				index = { schedule_index = insert_index },
 			})
 		end
 		schedule.add_record({
 			station = found_stop.backer_name,
+			temporary = true,
 			index = { schedule_index = insert_index },
 		})
 		if schedule.current > insert_index then
